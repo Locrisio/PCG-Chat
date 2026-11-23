@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>PCG Chat</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="node_modules/@supabase/supabase-js/dist/umd/supabase.js"></script>
+  <script src="node_modules/peerjs/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+  <!-- BARRA SUPERIOR DE VENTANA WINDOWS 11 -->
+  <div class="titlebar">
+    <div class="titlebar-brand">
+      <img src="assets/icon.ico" onerror="this.src='assets/predeterminado.png'" alt="PCG">
+      <span>PCG Chat</span>
+    </div>
+    <div style="-webkit-app-region: no-drag; font-size: 11.5px; color: var(--text-secondary);" id="connection-pill">
+      ● Listo para conectar
+    </div>
+  </div>
+
+  <!-- PANTALLA 1: INICIAR SESION Y REGISTRO -->
+  <div id="auth-screen">
+
+    <!-- FORMULARIO INICIAR SESION -->
+    <div class="login-card" id="login-box">
+      <h1>Iniciar Sesión en PCG Chat</h1>
+      <p>Ingresa tu nombre, tu contraseña y tu ID única para cargar tus chats y contactos al instante.</p>
+
+      <div class="form-group">
+        <label>Nombre visible</label>
+        <input type="text" id="login-user" class="input-fluent" placeholder="Ej: Dilan" maxlength="20">
+      </div>
+
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass" class="input-fluent" placeholder="••••••••" maxlength="30">
+      </div>
+
+      <div class="form-group">
+        <label>Tu ID única (9 dígitos)</label>
+        <input type="text" id="login-id" class="input-fluent" placeholder="Ej: 482-910-357" maxlength="11" onkeypress="if(event.key==='Enter') loginAccount()">
+      </div>
+
+      <button class="btn-fluent btn-primary" style="width: 100%; padding: 11px; margin-top: 6px;" onclick="loginAccount()">Iniciar Sesión</button>
+
+      <div style="text-align: center; margin-top: 14px;">
+        <button class="link-btn" onclick="switchAuthMode('register')">¿No tienes cuenta? Regístrate</button>
+      </div>
+    </div>
+
+    <!-- FORMULARIO REGISTRARSE -->
+    <div class="login-card" id="register-box" style="display: none;">
+      <h1>Crear Cuenta en PCG Chat</h1>
+      <p>Elige tu nombre, contraseña y foto de perfil. Te asignaremos una ID única automáticamente.</p>
+
+      <div class="form-group">
+        <label>Nombre visible</label>
+        <input type="text" id="reg-user" class="input-fluent" placeholder="Ej: Dilan" maxlength="20">
+      </div>
+
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="reg-pass" class="input-fluent" placeholder="Crea una contraseña" maxlength="30">
+      </div>
+
+      <div class="form-group">
+        <label>Elige tu foto de perfil</label>
+        <div class="avatar-picker-grid" id="reg-avatar-grid">
+          <div class="avatar-choice selected" data-avatar="assets/predeterminado.png" onclick="selectRegAvatar(this)">
+            <img src="assets/predeterminado.png" alt="Predeterminado">
+            <span>Predeterminado</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/flor.png" onclick="selectRegAvatar(this)">
+            <img src="assets/flor.png" alt="Flor">
+            <span>Flor</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/locrisio.png" onclick="selectRegAvatar(this)">
+            <img src="assets/locrisio.png" alt="Locrisio">
+            <span>Locrisio</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/muchi.png" onclick="selectRegAvatar(this)">
+            <img src="assets/muchi.png" alt="Muchi">
+            <span>Muchi</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/planeta.png" onclick="selectRegAvatar(this)">
+            <img src="assets/planeta.png" alt="Planeta">
+            <span>Planeta</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/pelota.png" onclick="selectRegAvatar(this)">
+            <img src="assets/pelota.png" alt="Pelota">
+            <span>Pelota</span>
+          </div>
+        </div>
+        <button class="btn-fluent" style="margin-top: 6px;" onclick="pickRegCustomAvatar()">🖼️ O elegir foto desde mi PC</button>
+      </div>
+
+      <button class="btn-fluent btn-primary" style="width: 100%; padding: 11px; margin-top: 6px;" onclick="registerAccount()">Crear Cuenta y Entrar</button>
+
+      <div style="text-align: center; margin-top: 14px;">
+        <button class="link-btn" onclick="switchAuthMode('login')">¿Ya tienes cuenta? Inicia sesión</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PANTALLA 2: APLICACION PRINCIPAL -->
+  <div id="app-screen">
+
+    <!-- SECTOR SUPERIOR: TU PERFIL, ESTADO Y MENSAJE PERSONAL -->
+    <div class="top-profile-bar">
+      <div class="my-profile-cluster">
+        <div class="avatar-ring-wrap">
+          <img id="my-top-avatar" src="assets/predeterminado.png" alt="Mi avatar">
+          <span id="my-top-status-dot" class="status-dot status-online"></span>
+        </div>
+        <div class="my-info-texts">
+          <div class="my-name-row">
+            <strong id="my-top-name">Usuario</strong>
+            <span class="id-badge" id="my-top-id" onclick="copyMyId()" title="Clic para copiar tu ID">000-000-000</span>
+          </div>
+          <input type="text" id="my-personal-msg" class="personal-msg-input" placeholder="Escribe un mensaje personal..." maxlength="60" onchange="updatePersonalMessage()">
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <select id="my-status-select" class="status-select" onchange="changeMyStatus()">
+          <option value="online">🟢 Conectado</option>
+          <option value="away">🟡 No estoy</option>
+          <option value="busy">🔴 No puedo atender</option>
+          <option value="offline">⚪ Desconectado</option>
+        </select>
+
+        <button class="btn-fluent" onclick="openModal('modal-new-group')">👥 Nuevo Grupo</button>
+        <button class="btn-fluent" onclick="openSettingsModal()">⚙️ Ajustes</button>
+        <button class="btn-fluent btn-danger" onclick="logoutAccount()" title="Cerrar sesión">Salir</button>
+      </div>
+    </div>
+
+    <!-- ESPACIO DE TRABAJO -->
+    <div class="workspace">
+
+      <!-- PANEL IZQUIERDO: TUS CHATS Y GRUPOS -->
+      <div class="sidebar">
+        <div class="sidebar-tabs">
+          <button id="tab-chats" class="btn-fluent btn-primary" onclick="switchSidebarTab('chats')">Tus Chats</button>
+          <button id="tab-groups" class="btn-fluent" onclick="switchSidebarTab('groups')">Grupos</button>
+        </div>
+
+        <div class="add-contact-box" id="add-contact-bar">
+          <input type="text" id="search-id-input" class="input-fluent" placeholder="ID amigo (Ej: 482-910-357)" maxlength="11" onkeypress="if(event.key==='Enter') searchAndAddContact()">
+          <button class="btn-fluent btn-primary" onclick="searchAndAddContact()">Buscar</button>
+        </div>
+
+        <div class="contacts-scroll" id="sidebar-list"></div>
+      </div>
+
+      <!-- PANEL DERECHO: CHAT + CAMARAS + HERRAMIENTAS -->
+      <div class="chat-area">
+        <div class="chat-header">
+          <div class="chat-peer-info" onclick="openPeerProfileModal()" style="cursor: pointer;" title="Clic para ver perfil">
+            <img id="chat-header-avatar" src="assets/predeterminado.png" alt="Contacto">
+            <div>
+              <strong id="chat-header-name" style="font-size: 14.5px;">Selecciona un chat</strong>
+              <div id="chat-header-sub" style="font-size: 12px; color: var(--text-secondary);">Elige un amigo o grupo a la izquierda</div>
+            </div>
+          </div>
+
+          <div class="chat-header-tools" id="chat-tools" style="display: none;">
+            <button class="btn-fluent" onclick="startCall(false)" title="Llamada de voz HD">📞 Voz</button>
+            <button class="btn-fluent" onclick="startCall(true)" title="Videollamada HD">🎥 Video</button>
+            <button class="btn-fluent" onclick="openTicTacToe()" title="Jugar 3 en Raya">❌⭕ 3 en Raya</button>
+            <button class="btn-fluent btn-special" onclick="openCapsuleModal()" title="Enviar Cápsula del Tiempo">⏳ Cápsula</button>
+            <button class="btn-fluent btn-special" onclick="triggerAbreVentanas()" title="Abrir ventana al frente de tu amigo">🪟 Abre Ventanas</button>
+          </div>
+        </div>
+
+        <!-- AREA DE VIDEO LLAMADA HD -->
+        <div class="video-stage" id="video-stage">
+          <div class="video-box">
+            <video id="local-video" autoplay muted playsinline></video>
+            <span class="video-tag">Tú (HD)</span>
+          </div>
+          <div class="video-box">
+            <video id="remote-video" autoplay playsinline></video>
+            <span class="video-tag" id="remote-video-label">Amigo (HD)</span>
+          </div>
+          <div style="width: 100%; display: flex; justify-content: center; gap: 10px;">
+            <button class="btn-fluent" id="btn-toggle-mic" onclick="toggleMic()">🎙️ Silenciar Mic</button>
+            <button class="btn-fluent" id="btn-toggle-cam" onclick="toggleCam()">📷 Apagar Cam</button>
+            <button class="btn-fluent btn-danger" onclick="endCall()">📵 Colgar</button>
+          </div>
+        </div>
+
+        <!-- HISTORIAL DE MENSAJES -->
+        <div class="messages-feed" id="messages-feed">
+          <div style="margin: auto; text-align: center; color: var(--text-secondary); max-width: 340px;">
+            <h3 style="margin-bottom: 6px; color: var(--text-primary);">Tus Chats en PCG</h3>
+            <p style="font-size: 13px;">Busca a un amigo usando su ID de 9 dígitos o crea un grupo para hablar, jugar y compartir archivos de hasta 100 GB.</p>
+          </div>
+        </div>
+
+                <!-- BARRA DE ENVIO INFERIOR -->
+        <div class="chat-composer" id="chat-composer" style="display: none;">
+          <button class="btn-fluent" onclick="openWindowsEmojiPanel()" title="Panel de emojis de Windows">😀</button>
+          <button class="btn-fluent" onclick="sendLargeFile()" title="Enviar archivo (hasta 100 GB)">📎</button>
+          <button class="btn-fluent" id="btn-voice-note" onclick="toggleVoiceNote()" title="Nota de voz">🎤</button>
+          <button class="btn-fluent" id="btn-video-note" onclick="openVideoNoteModal()" title="Nota de video">📹</button>
+          <input type="text" id="msg-input" class="input-fluent" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter') sendTextMessage()">
+          <button class="btn-fluent btn-primary" onclick="sendTextMessage()">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LLAMADA ENTRANTE -->
+  <div class="modal-backdrop" id="modal-incoming-call">
+    <div class="modal-box" style="text-align: center;">
+      <img id="incoming-caller-avatar" src="assets/predeterminado.png" style="width: 72px; height: 72px; border-radius: 50%; margin-bottom: 10px; object-fit: cover;">
+      <h3 id="incoming-caller-name">Llamada entrante</h3>
+      <p id="incoming-caller-type" style="color: var(--text-secondary); font-size: 13px; margin: 6px 0 18px;">Videollamada HD en curso...</p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button class="btn-fluent btn-primary" onclick="acceptIncomingCall()">📞 Contestar</button>
+        <button class="btn-fluent btn-danger" onclick="rejectIncomingCall()">📵 Rechazar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL AJUSTES -->
+  <div class="modal-backdrop" id="modal-settings">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⚙️ Ajustes de PCG Chat</h3>
+        <button class="btn-fluent" onclick="closeModal('modal-settings')">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label>Apariencia / Tema de Windows</label>
+        <select id="set-theme" class="status-select" onchange="previewThemeChoice()">
+          <option value="dark">🌙 Modo Oscuro (Predeterminado)</option>
+          <option value="light">☀️ Modo Claro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Tu Nombre Visible</label>
+        <input type="text" id="set-username" class="input-fluent" maxlength="20">
+      </div>
+
+      <div class="form-group">
+        <label>Foto de Perfil</label>
+        <div class="avatar-picker-grid" id="settings-avatar-grid">
+          <div class="avatar-choice" data-avatar="assets/predeterminado.png" onclick="selectSettingsAvatar(this)">
+            <img src="assets/predeterminado.png"><span>Predeterminado</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/flor.png" onclick="selectSettingsAvatar(this)">
+            <img src="assets/flor.png"><span>Flor</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/locrisio.png" onclick="selectSettingsAvatar(this)">
+            <img src="assets/locrisio.png"><span>Locrisio</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/muchi.png" onclick="selectSettingsAvatar(this)">
+            <img src="assets/muchi.png"><span>Muchi</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/planeta.png" onclick="selectSettingsAvatar(this)">
+            <img src="assets/planeta.png"><span>Planeta</span>
+          </div>
+          <div class="avatar-choice" data-avatar="assets/pelota.png" onclick="selectSettingsAvatar(this)">
+            <img src="assets/pelota.png"><span>Pelota</span>
+          </div>
+        </div>
+        <button class="btn-fluent" style="margin-top: 6px;" onclick="pickCustomAvatar()">🖼️ Elegir foto desde mi PC</button>
+      </div>
+
+      <div class="form-group">
+        <label>Tono de Llamada</label>
+        <div style="display: flex; gap: 6px;">
+          <select id="set-call-tone" class="status-select" style="flex: 1;" onchange="previewTone('call')">
+            <option value="assets/cadence.mp3">Cadence</option>
+            <option value="assets/anthem.mp3">Anthem</option>
+            <option value="assets/serenade.mp3">Serenade</option>
+          </select>
+          <button class="btn-fluent" onclick="pickCustomTone('call')">🎵 De mi PC</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Tono de Notificación / Mensajes</label>
+        <div style="display: flex; gap: 6px;">
+          <select id="set-msg-tone" class="status-select" style="flex: 1;" onchange="previewTone('msg')">
+            <option value="assets/pluck.mp3">Pluck</option>
+            <option value="assets/chime.mp3">Chime</option>
+            <option value="assets/snap.mp3">Snap</option>
+          </select>
+          <button class="btn-fluent" onclick="pickCustomTone('msg')">🔔 De mi PC</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="flex-direction: row; align-items: center; justify-content: space-between; background: var(--surface-hover); padding: 10px; border-radius: 8px;">
+        <span>Iniciar automáticamente con Windows</span>
+        <input type="checkbox" id="set-autostart" onchange="toggleAutoStart()" style="width: 18px; height: 18px; cursor: pointer;">
+      </div>
+
+      <button class="btn-fluent btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveSettings()">Guardar Cambios</button>
+    </div>
+  </div>
+
+  <!-- MODAL CAPSULA DEL TIEMPO -->
+  <div class="modal-backdrop" id="modal-capsule">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⏳ Crear Cápsula del Tiempo</h3>
+        <button class="btn-fluent" onclick="closeModal('modal-capsule')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Mensaje secreto dentro de la cápsula</label>
+        <input type="text" id="capsule-text" class="input-fluent" placeholder="Escribe algo que se abrirá después...">
+      </div>
+      <div class="form-group">
+        <label>¿Cuándo se podrá abrir?</label>
+        <select id="capsule-delay" class="status-select">
+          <option value="10">En 10 segundos (Prueba rápida)</option>
+          <option value="60">En 1 minuto</option>
+          <option value="300">En 5 minutos</option>
+          <option value="3600">En 1 hora</option>
+          <option value="86400">En 24 horas</option>
+        </select>
+      </div>
+      <button class="btn-fluent btn-special" style="width: 100%; margin-top: 8px;" onclick="sendTimeCapsule()">🔒 Sellar y Enviar Cápsula</button>
+    </div>
+  </div>
+
+  <!-- MODAL NUEVO GRUPO -->
+  <div class="modal-backdrop" id="modal-new-group">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>👥 Crear Nuevo Grupo</h3>
+        <button class="btn-fluent" onclick="closeModal('modal-new-group')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Nombre del Grupo</label>
+        <input type="text" id="group-name-input" class="input-fluent" placeholder="Ej: Los del Colegio">
+      </div>
+      <div class="form-group">
+        <label>Selecciona los miembros (de tus contactos)</label>
+        <div id="group-members-checklist" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto;"></div>
+      </div>
+      <button class="btn-fluent btn-primary" style="width: 100%; margin-top: 8px;" onclick="createGroup()">Crear Grupo</button>
+    </div>
+  </div>
+
+  <!-- MODAL NOTA DE VIDEO -->
+  <div class="modal-backdrop" id="modal-video-note">
+    <div class="modal-box" style="text-align: center;">
+      <div class="modal-header">
+        <h3>📹 Grabar Nota de Video</h3>
+        <button class="btn-fluent" onclick="closeVideoNoteModal()">✕</button>
+      </div>
+      <video id="video-note-preview" autoplay muted playsinline style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; background: #000; border: 3px solid var(--accent);"></video>
+      <div style="margin-top: 14px; display: flex; gap: 10px; justify-content: center;">
+        <button class="btn-fluent btn-primary" id="btn-record-vnote" onclick="toggleRecordVideoNote()">● Grabar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3 EN RAYA -->
+  <div class="modal-backdrop" id="modal-ttt">
+    <div class="modal-box" style="text-align: center;">
+      <div class="modal-header">
+        <h3>❌⭕ 3 en Raya</h3>
+        <button class="btn-fluent" onclick="closeModal('modal-ttt')">✕</button>
+      </div>
+      <p id="ttt-status" style="color: var(--accent); font-weight: 600;">Tu turno (X)</p>
+      <div class="ttt-grid" id="ttt-board"></div>
+      <button class="btn-fluent" onclick="resetTicTacToe(true)">🔄 Reiniciar Partida</button>
+    </div>
+  </div>
+
+   <!-- MODAL PERFIL Y APODO -->
+  <div class="modal-backdrop" id="modal-peer-profile">
+    <div class="modal-box" style="text-align: center;">
+      <div class="modal-header">
+        <h3>Perfil</h3>
+        <button class="btn-fluent" onclick="closeModal('modal-peer-profile')">✕</button>
+      </div>
+      <img id="profile-modal-avatar" src="assets/predeterminado.png" style="width: 84px; height: 84px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
+      <h3 id="profile-modal-name">Nombre</h3>
+      <p id="profile-modal-id" style="color: var(--accent); font-size: 12.5px; margin: 4px 0;">ID: ---</p>
+      <p id="profile-modal-bio" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 14px;">Mensaje personal</p>
+      <div class="form-group" style="text-align: left;">
+        <label>Apodo privado (solo tú lo ves así)</label>
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="profile-modal-alias" class="input-fluent" placeholder="Ponle un apodo..." style="flex: 1;">
+          <button class="btn-fluent btn-primary" onclick="saveContactAlias()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENU CLIC DERECHO EN MENSAJES -->
+  <div class="context-menu" id="msg-context-menu">
+    <div class="quick-emojis-row">
+      <span onclick="reactToSelectedMsg('👍')">👍</span>
+      <span onclick="reactToSelectedMsg('❤️')">❤️</span>
+      <span onclick="reactToSelectedMsg('😂')">😂</span>
+      <span onclick="reactToSelectedMsg('😮')">😮</span>
+      <span onclick="reactToSelectedMsg('🔥')">🔥</span>
+      <span onclick="openEmojiForReaction()" title="Más emojis de Windows">➕</span>
+    </div>
+    <button onclick="deleteMsgForMe()">🗑️ Eliminar para mí</button>
+    <button id="ctx-delete-everyone" onclick="deleteMsgForEveryone()">❌ Eliminar para todos</button>
+  </div>
+
+  <!-- MENU CLIC DERECHO EN CONTACTOS -->
+  <div class="context-menu" id="contact-context-menu">
+    <button onclick="ctxViewProfile()">👤 Ver perfil y apodo</button>
+    <button id="ctx-block-btn" onclick="ctxToggleBlock()">🚫 Bloquear contacto</button>
+    <button id="ctx-delete-contact" onclick="ctxDeleteContact()" style="color: #fca5a5;">🗑️ Eliminar de Tus Chats</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
