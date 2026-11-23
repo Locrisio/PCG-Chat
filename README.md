@@ -1,2 +1,2 @@
 # PCG-Chat
-PCG Chat is a BETA messaging app for Windows. (Please don't confuse. PCG does not mean PSG, it's different).
+PCG Chat is a BETA messaging app for Windows. (Please don't confuse. PCG does not mean PSG, it's different), (My personal company is called PCG Studios, don't get confused).
